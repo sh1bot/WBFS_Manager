@@ -1,0 +1,48 @@
+name: Windows builds
+
+on:
+  push:
+    branches: [master, 'ci/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86, x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install .NET Framework 3.5 reference assemblies
+        shell: pwsh
+        run: |
+          nuget install Microsoft.NETFramework.ReferenceAssemblies.net35 -Version 1.0.3 -OutputDirectory packages -NonInteractive
+          $root = (Resolve-Path 'packages/Microsoft.NETFramework.ReferenceAssemblies.net35.1.0.3/build').Path
+          "FRAMEWORK_ROOT=$root" >> $env:GITHUB_ENV
+
+      - name: Build managed projects
+        shell: pwsh
+        run: |
+          $projects = @(
+            'libwbfsNET/libwbfsNET.csproj',
+            'ChannelCreationWrapper/ChannelCreationWrapper.csproj',
+            'RssUpdater/RssUpdater.csproj',
+            'UnRarNET/UnRarNET.csproj',
+            'WBFS Manager/WBFSManager.csproj'
+          )
+          foreach ($project in $projects) {
+            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU "/p:TargetFrameworkRootPath=$env:FRAMEWORK_ROOT\"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Publish managed build diagnostic
+        shell: pwsh
+        run: |
+          Write-Host 'Managed .NET build completed.'
+          Write-Host 'Native DLL builds and deployable architecture-specific packages are not yet implemented.'
