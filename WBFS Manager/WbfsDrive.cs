@@ -9,6 +9,7 @@ using System.Text;
 using System.Xml.Linq;
 using libwbfsNET;
 using UnRarNET;
+using SharpCompress.Archives.Rar;
 using WBFSManager.Data;
 using IOPath = System.IO.Path;
 
@@ -926,61 +927,66 @@ namespace WBFSManager
         /// <returns>Returns a list of filename strings of ISO files that were extracted. Returns null if no ISO files were extracted.</returns>
         private List<String> ExtractRar(String filename, ExtractionProgressHandler unrar_ExtractionProgress, MissingVolumeHandler unrar_MissingVolume, PasswordRequiredHandler unrar_PasswordRequired)
         {
-            Unrar unrar = null;                                         //An instance of the Unrar class that will do the unraring.
-            List<String> extractedIsoFilenames = null;                  //The list of extracted ISO filenames.
-            try
+            // The historical UnRAR.DLL is no longer required for ISO imports.
+            // Extract only ISO images using maintained managed code, and never
+            // trust paths supplied by a RAR archive.
+            List<String> extractedIsoFilenames = new List<String>();
+            using (var archive = RarArchive.OpenArchive(filename))
             {
-                unrar = new Unrar();                                    //initialize the Unrar object
-                unrar.Open(filename, Unrar.OpenMode.List);              //Have it open the RAR file in listing mode.
-                string[] fileList = unrar.ListFiles();                  //Get the list of files in the archive
-                bool hasIsos = false;                                   //Flag indicating whether or not the current archive actually has any ISO files in it.
-                foreach (String item in fileList)                       //Iterate over the files in the RAR archive and if any of the have a .iso extension, set the hasIsos flag to true.
+                bool hasIsos = false;
+                foreach (var entry in archive.Entries)
                 {
-                    if (item.Contains(".iso"))
+                    if (!entry.IsDirectory && entry.Key.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
                     {
                         hasIsos = true;
-                        break;                                          //break out as soon as we've found the first .iso file.
+                        break;
                     }
                 }
-                unrar.Close();                                          //Close the archive.
-                if (!hasIsos)                                           //If no ISO files have been found, return null
+                if (!hasIsos)
                     return null;
 
-                unrar = new Unrar();                                    //Create a new instance of the Unrar object.
-                extractedIsoFilenames = new List<String>();             //Instantiate the list of extracted ISO files.
-                unrar.ExtractionProgress += unrar_ExtractionProgress;   //Hookup the passed in event handlers
-                unrar.MissingVolume += unrar_MissingVolume;
-                unrar.PasswordRequired += unrar_PasswordRequired;
-                unrar.DestinationPath = TempDirectory;                  //Tell it to unrar the files in the TempDirectory specified by the user
-                unrar.Open(filename, Unrar.OpenMode.Extract);           //Open the RAR file in extract mode.
-                while (unrar.ReadHeader())                              //While theres still something to read
+                Directory.CreateDirectory(TempDirectory);
+                foreach (var entry in archive.Entries)
                 {
-                    if (unrar.CurrentFile.FileName.Contains(".iso"))    //check if the current file is an iso file
+                    if (entry.IsDirectory || !entry.Key.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    // Flatten archive paths to the chosen temporary directory.
+                    // This prevents absolute paths and ../ from escaping it.
+                    string name = Path.GetFileName(entry.Key.Replace('/', '\\'));
+                    if (String.IsNullOrEmpty(name) || name == "." || name == "..")
+                        throw new InvalidDataException("Invalid ISO filename in RAR archive.");
+                    string outputName = Path.Combine(TempDirectory, name);
+                    long copied = 0;
+                    var progress = new ExtractionProgressEventArgs { FileName = name, FileSize = entry.Size, PercentComplete = 0 };
+                    if (unrar_ExtractionProgress != null)
+                        unrar_ExtractionProgress(null, progress);
+                    using (Stream source = entry.OpenEntryStream())
+                    using (Stream destination = new FileStream(outputName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                     {
-                        ExtractionProgressEventArgs progressZero = new ExtractionProgressEventArgs {PercentComplete = 0};       //if so, call the progress callback to set it to zero.
-                        unrar_ExtractionProgress(null, progressZero);
-                        unrar.Extract();                                                                    //Call the extract function to do the actual extraction
-                        extractedIsoFilenames.Add(Path.Combine(TempDirectory, unrar.CurrentFile.FileName)); //Once the extraction is successfully done, add the extracted ISO file to the list to be returned
+                        byte[] buffer = new byte[131072];
+                        int bytesRead;
+                        while ((bytesRead = source.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            copied += bytesRead;
+                            // Wii images should be under 10 GiB. Reject corrupt or
+                            // malicious archives that expand without bounds.
+                            if (copied > 10L * 1024 * 1024 * 1024)
+                                throw new InvalidDataException("RAR ISO entry exceeds the allowed size.");
+                            destination.Write(buffer, 0, bytesRead);
+                            progress.BytesExtracted = copied;
+                            progress.PercentComplete = entry.Size > 0 ? (100.0 * copied / entry.Size) : 0;
+                            if (unrar_ExtractionProgress != null)
+                            {
+                                unrar_ExtractionProgress(null, progress);
+                                if (!progress.ContinueOperation)
+                                    throw new OperationCanceledException("RAR extraction cancelled.");
+                            }
+                        }
                     }
-                    else
-                    {
-                        unrar.Skip();                                   //If the current file isn't an .iso file, skip it, we're not interested in it.
-                    }
+                    extractedIsoFilenames.Add(outputName);
                 }
             }
-            catch (Exception e)                                         //if an exception occurs, close the RAR file and throw the exception.
-            {
-                if (unrar != null)
-                {
-                    unrar.Close();
-                }
-                throw e;                                                // TODO: Replace with a proper error message...
-            }
-            if (unrar != null)                                          //If the extraction process is successful and the unrar object isn't null, close the RAR archive.
-            {
-                unrar.Close();
-            }
-            return extractedIsoFilenames;                               // return the list of extracted ISO files.
+            return extractedIsoFilenames;
         }
 
         /// <summary>
