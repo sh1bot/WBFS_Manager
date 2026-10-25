@@ -33,7 +33,7 @@ jobs:
             'WBFS Manager/WBFSManager.csproj'
           )
           foreach ($project in $projects) {
-            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU "/p:TargetFrameworkRootPath=$env:FRAMEWORK_ROOT\"
+            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:TargetFrameworkVersion=v4.8
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
