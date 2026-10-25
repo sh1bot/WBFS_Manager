@@ -49,3 +49,36 @@ jobs:
             !WBFS Manager/bin/Release/**/*.cs
             !WBFS Manager/bin/Release/**/*.resx
           if-no-files-found: error
+
+  native-wrapper:
+    # Compile the native WBFS bridge from checked-in source rather than
+    # silently trusting the prebuilt DLL in the managed project.
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86, x64]
+        include:
+          - arch: x86
+            vcvars: x86
+          - arch: x64
+            vcvars: x64
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build WBFS native bridge with MSVC
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe" -latest -property installationPath`) do set "VSROOT=%%i"
+          call "%VSROOT%\\VC\\Auxiliary\\Build\\vcvarsall.bat" ${{ matrix.vcvars }}
+          if errorlevel 1 exit /b 1
+          mkdir native-out
+          cd native-out
+          cl /nologo /c /O2 /MD /DWIN32 /D_CRT_SECURE_NO_WARNINGS /I"..\\libwbfs\\include" /I"..\\libwbfsNETwrapper" "..\\libwbfs\\src\\libwbfs.c" "..\\libwbfs\\src\\libwbfs_win32.c" "..\\libwbfs\\src\\rijndael.c" "..\\libwbfs\\src\\wiidisc.c" "..\\libwbfsNETwrapper\\DiskAccessTools.c" "..\\libwbfsNETwrapper\\libwbfsExt.c" "..\\libwbfsNETwrapper\\CSWtools.c"
+          if errorlevel 1 exit /b 1
+          cl /nologo /LD /O2 /MD /EHsc /DWIN32 /D_CRT_SECURE_NO_WARNINGS /I"..\\libwbfs\\include" /I"..\\libwbfsNETwrapper" "..\\libwbfsNETwrapper\\WbfsInterm.cpp" *.obj /link /OUT:libwbfsNETwrapper.dll ws2_32.lib
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@v5
+        with:
+          name: WBFS-native-source-build-${{ matrix.arch }}-unverified
+          path: native-out/libwbfsNETwrapper.dll
+          if-no-files-found: error
