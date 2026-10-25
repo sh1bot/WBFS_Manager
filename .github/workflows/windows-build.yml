@@ -29,7 +29,7 @@ jobs:
             'WBFS Manager/WBFSManager.csproj'
           )
           foreach ($project in $projects) {
-            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:TargetFrameworkVersion=v4.8
+            & msbuild $project /restore /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:TargetFrameworkVersion=v4.8
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
@@ -134,7 +134,7 @@ jobs:
             'WBFS Manager/WBFSManager.csproj'
           )
           foreach ($project in $projects) {
-            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:PlatformTarget=x64 /p:TargetFrameworkVersion=v4.8
+            & msbuild $project /restore /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:PlatformTarget=x64 /p:TargetFrameworkVersion=v4.8
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - uses: actions/upload-artifact@v5
@@ -199,7 +199,7 @@ jobs:
             'WBFS Manager/WBFSManager.csproj'
           )
           foreach ($project in $projects) {
-            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:PlatformTarget=ARM64 /p:TargetFrameworkVersion=v4.8.1
+            & msbuild $project /restore /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:PlatformTarget=ARM64 /p:TargetFrameworkVersion=v4.8.1
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - uses: actions/download-artifact@v5
