@@ -287,7 +287,8 @@ jobs:
           if-no-files-found: error
 
   modern-crypto-native-exploratory:
-    # Temporary validation run after fixing OpenSSL include selection.
+    # This is a separate expensive experiment, not a release gate.
+    if: github.event_name == 'workflow_dispatch'
     # These legacy modules were linked against pre-1.0 OpenSSL. Attempt to
     # rebuild against supported OpenSSL 3 instead of bundling the old binaries.
     # Never upload these as working dependencies until compatibility is tested.
