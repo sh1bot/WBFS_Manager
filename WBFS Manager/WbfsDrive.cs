@@ -8,13 +8,38 @@ using System.Net;
 using System.Text;
 using System.Xml.Linq;
 using libwbfsNET;
-using UnRarNET;
 using SharpCompress.Archives.Rar;
 using WBFSManager.Data;
 using IOPath = System.IO.Path;
 
 namespace WBFSManager
 {
+    // Progress and interaction callbacks retained for the existing UI.
+    // They no longer depend on the obsolete UnRarNET P/Invoke wrapper.
+    public delegate void ExtractionProgressHandler(object sender, ExtractionProgressEventArgs args);
+    public delegate void MissingVolumeHandler(object sender, MissingVolumeEventArgs args);
+    public delegate void PasswordRequiredHandler(object sender, PasswordRequiredEventArgs args);
+
+    public class ExtractionProgressEventArgs : EventArgs
+    {
+        public string FileName;
+        public long FileSize;
+        public long BytesExtracted;
+        public double PercentComplete;
+        public bool ContinueOperation = true;
+    }
+    public class MissingVolumeEventArgs : EventArgs
+    {
+        public string VolumeName;
+        public bool ContinueOperation = false;
+        public MissingVolumeEventArgs(string volumeName) { VolumeName = volumeName; }
+    }
+    public class PasswordRequiredEventArgs : EventArgs
+    {
+        public string Password = String.Empty;
+        public bool ContinueOperation = true;
+    }
+
     public class WbfsDrive : INotifyPropertyChanged
     {
         #region Fields
