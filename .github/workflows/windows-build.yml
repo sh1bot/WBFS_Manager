@@ -110,6 +110,19 @@ jobs:
           }
           Get-FileHash 'dist/libwbfsNETwrapper.dll' -Algorithm SHA256 | Format-List
           Write-Host 'WARNING: ChannelCreation.dll, bannerExtractionWrapper.dll and unrar.dll are not supplied by this package.'
+      - name: Verify x86 package integrity and record hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $b = [IO.File]::ReadAllBytes('dist/libwbfsNETwrapper.dll')
+          $off = [BitConverter]::ToInt32($b, 0x3c)
+          if ([BitConverter]::ToUInt16($b, $off + 4) -ne 0x14c) { throw 'Native x86 wrapper has wrong machine type' }
+          foreach ($name in @('unrar.dll', 'libeay32.dll', 'ssleay32.dll')) {
+            if (Get-ChildItem 'dist' -Recurse -File -Filter $name) { throw "Obsolete library unexpectedly packaged: $name" }
+          }
+          Get-ChildItem 'dist' -File -Recurse | Sort-Object FullName | ForEach-Object {
+            "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.FullName.Substring((Resolve-Path dist).Path.Length + 1))"
+          } | Set-Content 'dist/SHA256SUMS.txt'
       - name: Upload x86 diagnostic package with rebuilt native bridge
         uses: actions/upload-artifact@v5
         with:
@@ -170,6 +183,16 @@ jobs:
           $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
           if ($machine -ne 0x8664) { throw "Expected x64 native wrapper, got PE machine 0x$($machine.ToString('X4'))" }
           Write-Host 'NOTE: RAR and channel extraction native libraries are not yet packaged. These features require additional work.'
+      - name: Verify x64 package dependencies and record hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('unrar.dll', 'libeay32.dll', 'ssleay32.dll')) {
+            if (Get-ChildItem 'dist' -Recurse -File -Filter $name) { throw "Obsolete library unexpectedly packaged: $name" }
+          }
+          Get-ChildItem 'dist' -File -Recurse | Sort-Object FullName | ForEach-Object {
+            "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.FullName.Substring((Resolve-Path dist).Path.Length + 1))"
+          } | Set-Content 'dist/SHA256SUMS.txt'
       - uses: actions/upload-artifact@v5
         with:
           name: WBFSManager-x64-rebuilt-wrapper-NOT-TESTED
@@ -241,6 +264,17 @@ jobs:
             }
           } finally { [void][NativeProbe]::FreeLibrary($dll) }
           Write-Host 'ARM64 managed assembly and native library load checks passed (GUI and disk operations NOT tested).'
+      - name: Verify ARM64 package dependencies and record hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dist = 'WBFS Manager/bin/Release'
+          foreach ($name in @('unrar.dll', 'libeay32.dll', 'ssleay32.dll')) {
+            if (Get-ChildItem $dist -Recurse -File -Filter $name) { throw "Obsolete library unexpectedly packaged: $name" }
+          }
+          Get-ChildItem $dist -File -Recurse | Sort-Object FullName | ForEach-Object {
+            "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.FullName.Substring((Resolve-Path $dist).Path.Length + 1))"
+          } | Set-Content "$dist/SHA256SUMS.txt"
       - name: Upload ARM64 experimental package
         uses: actions/upload-artifact@v5
         with:
