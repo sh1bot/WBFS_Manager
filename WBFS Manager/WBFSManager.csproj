@@ -1139,10 +1139,6 @@
       <Project>{B7B7C446-2884-497A-A450-948C26B788EB}</Project>
       <Name>RssUpdater</Name>
     </ProjectReference>
-    <ProjectReference Include="..\UnRarNET\UnRarNET.csproj">
-      <Project>{AA7B7F34-AAD3-495C-B5A7-40548ABC49E4}</Project>
-      <Name>UnRarNET</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
