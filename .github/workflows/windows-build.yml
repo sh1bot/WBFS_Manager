@@ -120,7 +120,7 @@ jobs:
           foreach ($name in @('unrar.dll', 'libeay32.dll', 'ssleay32.dll')) {
             if (Get-ChildItem 'dist' -Recurse -File -Filter $name) { throw "Obsolete library unexpectedly packaged: $name" }
           }
-          Get-ChildItem 'dist' -File -Recurse | Sort-Object FullName | ForEach-Object {
+          Get-ChildItem 'dist' -File -Recurse | Where-Object { $_.Extension -notin @('.pdb','.cs','.resx') } | Sort-Object FullName | ForEach-Object {
             "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.FullName.Substring((Resolve-Path dist).Path.Length + 1))"
           } | Set-Content 'dist/SHA256SUMS.txt'
       - name: Upload x86 diagnostic package with rebuilt native bridge
@@ -190,7 +190,7 @@ jobs:
           foreach ($name in @('unrar.dll', 'libeay32.dll', 'ssleay32.dll')) {
             if (Get-ChildItem 'dist' -Recurse -File -Filter $name) { throw "Obsolete library unexpectedly packaged: $name" }
           }
-          Get-ChildItem 'dist' -File -Recurse | Sort-Object FullName | ForEach-Object {
+          Get-ChildItem 'dist' -File -Recurse | Where-Object { $_.Extension -notin @('.pdb','.cs','.resx') } | Sort-Object FullName | ForEach-Object {
             "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.FullName.Substring((Resolve-Path dist).Path.Length + 1))"
           } | Set-Content 'dist/SHA256SUMS.txt'
       - uses: actions/upload-artifact@v5
@@ -272,7 +272,7 @@ jobs:
           foreach ($name in @('unrar.dll', 'libeay32.dll', 'ssleay32.dll')) {
             if (Get-ChildItem $dist -Recurse -File -Filter $name) { throw "Obsolete library unexpectedly packaged: $name" }
           }
-          Get-ChildItem $dist -File -Recurse | Sort-Object FullName | ForEach-Object {
+          Get-ChildItem $dist -File -Recurse | Where-Object { $_.Extension -notin @('.pdb','.cs','.resx') } | Sort-Object FullName | ForEach-Object {
             "$( (Get-FileHash $_.FullName -Algorithm SHA256).Hash )  $($_.FullName.Substring((Resolve-Path $dist).Path.Length + 1))"
           } | Set-Content "$dist/SHA256SUMS.txt"
       - name: Upload ARM64 experimental package
