@@ -248,7 +248,7 @@ namespace WBFSManager
             EditShowCoversMenuItem.IsChecked = Properties.Settings.Default.ShowCovers;      //Load the user's setting for showing covers and toggle the checkbox in the menu accordingly
             wbfsDriveCurrent.TempDirectory = Properties.Settings.Default.TempDirectory;     //Load the user's setting for the temporary directory
             wbfsDriveSecondary.TempDirectory = Properties.Settings.Default.TempDirectory;
-            if(!Directory.Exists(Properties.Settings.Default.TempDirectory)
+            if(!Directory.Exists(Properties.Settings.Default.TempDirectory))
             {
                 try
                 {
