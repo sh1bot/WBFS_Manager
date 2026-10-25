@@ -178,3 +178,51 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+
+  package-arm64-experimental:
+    # .NET Framework 4.8.1 has native ARM64 support on Windows 11.
+    # Execute the resulting application on a real ARM64 hosted runner before upload.
+    needs: [native-wrapper]
+    runs-on: windows-11-vs2026-arm
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build managed app against native ARM64-capable .NET Framework 4.8.1
+        shell: pwsh
+        run: |
+          $projects = @(
+            'libwbfsNET/libwbfsNET.csproj',
+            'ChannelCreationWrapper/ChannelCreationWrapper.csproj',
+            'RssUpdater/RssUpdater.csproj',
+            'UnRarNET/UnRarNET.csproj',
+            'WBFS Manager/WBFSManager.csproj'
+          )
+          foreach ($project in $projects) {
+            & msbuild $project /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /p:PlatformTarget=ARM64 /p:TargetFrameworkVersion=v4.8.1
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/download-artifact@v5
+        with:
+          name: WBFS-native-source-build-arm64-unverified
+          path: rebuilt-native
+      - name: Assemble and inspect ARM64 native library
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dist = 'WBFS Manager/bin/Release'
+          Copy-Item 'rebuilt-native/libwbfsNETwrapper.dll' "$dist/libwbfsNETwrapper.dll" -Force
+          $bytes = [IO.File]::ReadAllBytes("$dist/libwbfsNETwrapper.dll")
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          if ($machine -ne 0xAA64) { throw "Expected ARM64 native wrapper, got PE machine 0x$($machine.ToString('X4'))" }
+      - name: Upload ARM64 experimental package
+        uses: actions/upload-artifact@v5
+        with:
+          name: WBFSManager-ARM64-EXPERIMENTAL-NOT-TESTED
+          path: |
+            WBFS Manager/bin/Release/**
+            !WBFS Manager/bin/Release/**/*.pdb
+            !WBFS Manager/bin/Release/**/*.cs
+            !WBFS Manager/bin/Release/**/*.resx
+          if-no-files-found: error
