@@ -19,13 +19,9 @@ jobs:
       - name: Locate MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install .NET Framework 3.5 reference assemblies
-        shell: pwsh
-        run: |
-          nuget install Microsoft.NETFramework.ReferenceAssemblies.net35 -Version 1.0.3 -OutputDirectory packages -NonInteractive
-          $root = (Resolve-Path 'packages/Microsoft.NETFramework.ReferenceAssemblies.net35.1.0.3/build').Path
-          "FRAMEWORK_ROOT=$root" >> $env:GITHUB_ENV
-
+      # Modern MSBuild's WPF markup compiler cannot load the .NET 3.5
+      # WindowsBase reference assemblies. Compile the legacy source against
+      # the in-box .NET Framework 4.8 WPF assemblies instead.
       - name: Build managed projects
         shell: pwsh
         run: |
