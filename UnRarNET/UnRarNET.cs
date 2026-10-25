@@ -684,6 +684,22 @@ namespace UnRarNET
 
         private void Extract(string destinationPath, string destinationName)
         {
+            // Prevent archive names from escaping the extraction directory.
+            string entryName = string.IsNullOrEmpty(destinationName)
+                ? (currentFile == null ? null : currentFile.FileName)
+                : destinationName;
+            if (string.IsNullOrEmpty(entryName))
+                throw new InvalidDataException("RAR entry has no filename.");
+            string normalized = entryName.Replace('/', Path.DirectorySeparatorChar)
+                                         .Replace('\\', Path.DirectorySeparatorChar);
+            if (Path.IsPathRooted(normalized) || normalized.IndexOf(':') >= 0)
+                throw new InvalidDataException("RAR entry contains an absolute path.");
+            string root = Path.GetFullPath(string.IsNullOrEmpty(destinationPath)
+                ? Directory.GetCurrentDirectory() : destinationPath);
+            string target = Path.GetFullPath(Path.Combine(root, normalized));
+            string rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!target.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("RAR entry escapes the extraction directory.");
             int result = Unrar.RARProcessFile(this.archiveHandle, (int)Operation.Extract, destinationPath, destinationName);
 
             // Check result
