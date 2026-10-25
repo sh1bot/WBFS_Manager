@@ -254,3 +254,34 @@ jobs:
             !WBFS Manager/bin/Release/**/*.cs
             !WBFS Manager/bin/Release/**/*.resx
           if-no-files-found: error
+
+  modern-crypto-native-exploratory:
+    # These legacy modules were linked against pre-1.0 OpenSSL. Attempt to
+    # rebuild against supported OpenSSL 3 instead of bundling the old binaries.
+    # Never upload these as working dependencies until compatibility is tested.
+    runs-on: windows-2022
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install maintained OpenSSL for x64
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Try building channel and banner modules against OpenSSL 3
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe" -latest -property installationPath`) do set "VSROOT=%%i"
+          call "%VSROOT%\\VC\\Auxiliary\\Build\\vcvarsall.bat" x64
+          if errorlevel 1 exit /b 1
+          mkdir crypto-out
+          cd crypto-out
+          cl /nologo /LD /O2 /MD /EHsc /DWIN32 /D_CRT_SECURE_NO_WARNINGS /I"..\\bannerExtractionWrapper\\include" /I"%VCPKG_INSTALLATION_ROOT%\\installed\\x64-windows\\include" /I"%VCPKG_INSTALLATION_ROOT%\\installed\\x64-windows\\include\\openssl" "..\\bannerExtractionWrapper\\src\\global.c" "..\\bannerExtractionWrapper\\src\\Stdafx.cpp" "..\\bannerExtractionWrapper\\src\\WIIDisc.cpp" "..\\bannerExtractionWrapper\\src\\wiiscrubberWrapper.cpp" /link /OUT:bannerExtractionWrapper.dll /LIBPATH:"%VCPKG_INSTALLATION_ROOT%\\installed\\x64-windows\\lib" libcrypto.lib libssl.lib
+          if errorlevel 1 exit /b 1
+          cl /nologo /LD /O2 /MD /EHsc /DWIN32 /D_CRT_SECURE_NO_WARNINGS /I"..\\ChannelCreation" /I"%VCPKG_INSTALLATION_ROOT%\\installed\\x64-windows\\include" /I"%VCPKG_INSTALLATION_ROOT%\\installed\\x64-windows\\include\\openssl" "..\\ChannelCreation\\bn.c" "..\\ChannelCreation\\ec.c" "..\\ChannelCreation\\tools.c" "..\\ChannelCreation\\wadhandler.cpp" /link /OUT:ChannelCreation.dll /LIBPATH:"%VCPKG_INSTALLATION_ROOT%\\installed\\x64-windows\\lib" libcrypto.lib libssl.lib
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@v5
+        with:
+          name: crypto-modules-OpenSSL3-x64-UNVERIFIED
+          path: crypto-out/*.dll
+          if-no-files-found: error
