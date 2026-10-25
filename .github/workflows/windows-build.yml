@@ -216,6 +216,34 @@ jobs:
           $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
           $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
           if ($machine -ne 0xAA64) { throw "Expected ARM64 native wrapper, got PE machine 0x$($machine.ToString('X4'))" }
+      - name: Smoke-test managed metadata and native DLL load on ARM64
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dist = (Resolve-Path 'WBFS Manager/bin/Release').Path
+          $app = [Reflection.Assembly]::LoadFrom((Join-Path $dist 'WBFSManager.exe'))
+          $resources = @($app.GetManifestResourceNames())
+          if ($resources.Count -eq 0) { throw 'Managed executable has no embedded resources.' }
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class NativeProbe {
+              [DllImport("kernel32.dll", EntryPoint="LoadLibraryW", CharSet=CharSet.Unicode, SetLastError=true)]
+              public static extern IntPtr Load(string path);
+              [DllImport("kernel32.dll", SetLastError=true)]
+              public static extern bool FreeLibrary(IntPtr module);
+              [DllImport("kernel32.dll", CharSet=CharSet.Ansi, SetLastError=true)]
+              public static extern IntPtr GetProcAddress(IntPtr module, string name);
+          }
+          '@
+          $dll = [NativeProbe]::Load((Join-Path $dist 'libwbfsNETwrapper.dll'))
+          if ($dll -eq [IntPtr]::Zero) { throw "Could not load ARM64 native library; Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())" }
+          try {
+            if ([NativeProbe]::GetProcAddress($dll, 'OpenDrive') -eq [IntPtr]::Zero) {
+              throw 'Required OpenDrive export missing from native wrapper'
+            }
+          } finally { [void][NativeProbe]::FreeLibrary($dll) }
+          Write-Host 'ARM64 managed assembly and native library load checks passed (GUI and disk operations NOT tested).'
       - name: Upload ARM64 experimental package
         uses: actions/upload-artifact@v5
         with:
