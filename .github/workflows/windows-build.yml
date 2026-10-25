@@ -9,10 +9,6 @@ on:
 jobs:
   build:
     runs-on: windows-2022
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x86, x64, arm64]
     steps:
       - uses: actions/checkout@v5
 
@@ -41,12 +37,15 @@ jobs:
         shell: pwsh
         run: |
           Write-Host 'Managed .NET build completed.'
-          Write-Host 'Native DLL builds and deployable architecture-specific packages are not yet implemented.'
+          Write-Host 'This is an unverified managed diagnostic artifact, NOT an ARM64 native build or release.'
 
       - name: Upload managed build output (not a release package)
         uses: actions/upload-artifact@v5
         with:
-          name: WBFSManager-managed-${{ matrix.arch }}
+          name: WBFSManager-managed-AnyCPU-unverified
           path: |
-            WBFS Manager/bin/Release/
+            WBFS Manager/bin/Release/**
+            !WBFS Manager/bin/Release/**/*.pdb
+            !WBFS Manager/bin/Release/**/*.cs
+            !WBFS Manager/bin/Release/**/*.resx
           if-no-files-found: error
