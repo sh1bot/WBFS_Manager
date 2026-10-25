@@ -82,3 +82,34 @@ jobs:
           name: WBFS-native-source-build-${{ matrix.arch }}-unverified
           path: native-out/libwbfsNETwrapper.dll
           if-no-files-found: error
+
+  package-x86:
+    needs: [build, native-wrapper]
+    runs-on: windows-2022
+    steps:
+      - name: Download managed build
+        uses: actions/download-artifact@v5
+        with:
+          name: WBFSManager-managed-AnyCPU-unverified
+          path: dist
+      - name: Download freshly compiled x86 native WBFS bridge
+        uses: actions/download-artifact@v5
+        with:
+          name: WBFS-native-source-build-x86-unverified
+          path: rebuilt-native
+      - name: Replace legacy WBFS bridge and validate core files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Copy-Item 'rebuilt-native/libwbfsNETwrapper.dll' 'dist/libwbfsNETwrapper.dll' -Force
+          foreach ($file in @('WBFSManager.exe', 'libwbfsNET.dll', 'libwbfsNETwrapper.dll', 'Infralution.Localization.Wpf.dll')) {
+            if (!(Test-Path "dist/$file")) { throw "Missing required file: $file" }
+          }
+          Get-FileHash 'dist/libwbfsNETwrapper.dll' -Algorithm SHA256 | Format-List
+          Write-Host 'WARNING: ChannelCreation.dll, bannerExtractionWrapper.dll and unrar.dll are not supplied by this package.'
+      - name: Upload x86 diagnostic package with rebuilt native bridge
+        uses: actions/upload-artifact@v5
+        with:
+          name: WBFSManager-x86-rebuilt-wrapper-NOT-TESTED
+          path: dist/
+          if-no-files-found: error
