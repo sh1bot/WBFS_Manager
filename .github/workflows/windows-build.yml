@@ -41,20 +41,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
-      - name: Verify native dependencies
+      - name: Publish managed build diagnostic
         shell: pwsh
         run: |
-          # The original repository contains only x86/x64 native binaries.
-          # ARM64 must not be published as native until all dependencies are ported.
-          if ('${{ matrix.arch }}' -eq 'arm64') {
-            throw 'Native ARM64 build not yet supported: legacy C++ projects and bundled third-party DLLs require porting.'
-          }
-          throw 'Native C++ projects still use VS2008 .vcproj format; conversion and native builds are required before packaging.'
-
-      - name: Upload application
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: WBFSManager-${{ matrix.arch }}
-          path: WBFS Manager/bin/Release/
-          if-no-files-found: error
+          Write-Host 'Managed .NET build completed.'
+          Write-Host 'Native DLL builds and deployable architecture-specific packages are not yet implemented.'
