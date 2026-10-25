@@ -1,6 +1,18 @@
 # WBFS_Manager
 This application basically provides a GUI for working with hard disk drives that have been formatted to the WBFS file system.
 
+## Development downloads
+
+The current [GitHub Actions builds](https://github.com/sh1bot/WBFS_Manager/actions/workflows/windows-build.yml) provide separate x86, x64, and experimental ARM64 diagnostic ZIPs. These are **not official releases** and should be extracted before use.
+
+- **x86:** Windows .NET Framework 4.8, paired with a source-built x86 WBFS native wrapper. An earlier x86 package was manually launch-tested.
+- **x64:** Windows .NET Framework 4.8, paired with the source-built x64 native wrapper. CI-compiled, not yet user-tested.
+- **ARM64:** Windows 11 ARM64 with .NET Framework 4.8.1 and a native ARM64 WBFS wrapper. CI verifies the managed assembly, native DLL loading, and architecture; GUI and disk operations are not yet user-tested.
+
+Current packages include SharpCompress for RAR ISO imports in place of obsolete UnRAR native DLLs. The legacy ChannelCreation and bannerExtractionWrapper components are **not yet packaged**, so channel creation and related functionality may not work. The OpenSSL 3 native rebuild remains experimental. Do not use unverified builds for disk formatting or writing without independent backups and testing.
+
+The ZIPs include SHA256SUMS.txt for verifying the packaged files. GitHub Actions also records the artifact ZIP digest.
+
 Downloads
 
 Features
@@ -25,7 +37,7 @@ Ability to use more than one cover directory
 Channel Creation (NEW)
 
 Requirements
-.NET Framework 3.5 SP1 (the installer will prompt you to automatically download and install it if you don't already have it.)
+Current CI binaries: .NET Framework 4.8 (x86/x64), or .NET Framework 4.8.1 on Windows 11 ARM64. The original installer and its .NET Framework 3.5 requirement refer to the historical release.
 
 Instructions
 Install using setup.
