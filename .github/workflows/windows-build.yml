@@ -287,6 +287,8 @@ jobs:
           if-no-files-found: error
 
   modern-crypto-native-exploratory:
+    # OpenSSL builds are expensive; run this diagnostic on manual dispatch only.
+    if: github.event_name == 'workflow_dispatch'
     # These legacy modules were linked against pre-1.0 OpenSSL. Attempt to
     # rebuild against supported OpenSSL 3 instead of bundling the old binaries.
     # Never upload these as working dependencies until compatibility is tested.
