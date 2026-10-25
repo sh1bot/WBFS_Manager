@@ -51,18 +51,22 @@ jobs:
           if-no-files-found: error
 
   native-wrapper:
+    # ARM64 is exploratory: .NET Framework 4.8 packaging still needs an ARM64-compatible host.
+    continue-on-error: ${{ matrix.arch == 'arm64' }}
     # Compile the native WBFS bridge from checked-in source rather than
     # silently trusting the prebuilt DLL in the managed project.
     runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86, x64]
+        arch: [x86, x64, arm64]
         include:
           - arch: x86
             vcvars: x86
           - arch: x64
             vcvars: x64
+          - arch: arm64
+            vcvars: amd64_arm64
     steps:
       - uses: actions/checkout@v5
       - name: Build WBFS native bridge with MSVC
