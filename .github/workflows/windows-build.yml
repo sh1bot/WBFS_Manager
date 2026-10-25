@@ -42,3 +42,11 @@ jobs:
         run: |
           Write-Host 'Managed .NET build completed.'
           Write-Host 'Native DLL builds and deployable architecture-specific packages are not yet implemented.'
+
+      - name: Upload managed build output (not a release package)
+        uses: actions/upload-artifact@v4
+        with:
+          name: WBFSManager-managed-${{ matrix.arch }}
+          path: |
+            WBFS Manager/bin/Release/
+          if-no-files-found: error
