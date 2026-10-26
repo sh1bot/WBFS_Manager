@@ -353,7 +353,9 @@ jobs:
             test -s "packages/$arch/WBFSManager.exe"
             test -s "packages/$arch/libwbfsNETwrapper.dll"
             test -s "packages/$arch/SHA256SUMS.txt"
-            (cd "packages/$arch" && sha256sum -c SHA256SUMS.txt)
+            # CI generates manifests on Windows (backslash paths); normalize
+            # separators before verifying the same files on Linux.
+            (cd "packages/$arch" && sed 's@\\@/@g' SHA256SUMS.txt | sha256sum -c -)
             (cd "packages/$arch" && zip -q -r "../../release/WBFSManager-test-$arch.zip" .)
           done
           (cd release && sha256sum *.zip > SHA256SUMS.txt)
