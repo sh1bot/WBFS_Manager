@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: windows-2022
@@ -318,3 +321,72 @@ jobs:
           name: crypto-modules-OpenSSL3-x64-UNVERIFIED
           path: crypto-out/*.dll
           if-no-files-found: error
+
+  publish-test-release:
+    # A deliberate, one-off publication: adding [publish-test] to a commit
+    # message publishes that successful build without generating a release
+    # on every ordinary push.
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[publish-test]') }}
+    needs: [build, native-wrapper, build-managed-x64, package-x86, package-x64, package-arm64-experimental]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: WBFSManager-x86-rebuilt-wrapper-NOT-TESTED
+          path: packages/x86
+      - uses: actions/download-artifact@v5
+        with:
+          name: WBFSManager-x64-rebuilt-wrapper-NOT-TESTED
+          path: packages/x64
+      - uses: actions/download-artifact@v5
+        with:
+          name: WBFSManager-ARM64-EXPERIMENTAL-NOT-TESTED
+          path: packages/arm64
+      - name: Create user-downloadable ZIP files and verify payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          for arch in x86 x64 arm64; do
+            test -s "packages/$arch/WBFSManager.exe"
+            test -s "packages/$arch/libwbfsNETwrapper.dll"
+            test -s "packages/$arch/SHA256SUMS.txt"
+            (cd "packages/$arch" && sha256sum -c SHA256SUMS.txt)
+            (cd "packages/$arch" && zip -q -r "../../release/WBFSManager-test-$arch.zip" .)
+          done
+          (cd release && sha256sum *.zip > SHA256SUMS.txt)
+      - name: Publish GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="test-${GITHUB_SHA:0:7}"
+          cat > release-notes.md <<'EOF'
+          **Test release — not a stable release.**
+
+          Windows binaries:
+          - **x86**: .NET Framework 4.8 and a newly source-built x86 WBFS wrapper.
+          - **x64**: .NET Framework 4.8 and a newly source-built x64 WBFS wrapper.
+          - **ARM64**: Windows 11 ARM64, .NET Framework 4.8.1 and a native ARM64 WBFS wrapper.
+
+          All three architectures passed CI and were manually reported to download,
+          start, and run as expected. Disk formatting/writing and all feature paths
+          have **not** been exhaustively tested.
+
+          RAR ISO imports now use SharpCompress instead of the old native UnRAR DLL.
+          The OpenSSL-dependent channel/banner modules are not included: channel
+          creation and related functions may not work. These test builds are unsigned.
+
+          The separate SHA256SUMS.txt checksums the downloadable ZIP files.
+          Each ZIP contains its own SHA256SUMS.txt covering the unpacked files.
+          Back up disk data before testing disk-management functions.
+          EOF
+          gh release create "$tag" release/*.zip release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "WBFS Manager test build (${GITHUB_SHA:0:7})" \
+            --notes-file release-notes.md \
+            --prerelease
