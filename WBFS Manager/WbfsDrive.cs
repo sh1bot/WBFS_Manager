@@ -335,6 +335,13 @@ namespace WBFSManager
                         });                                                         //Note: the about two could be handled to have the user enter the password, etc, but since we're running this on a separate thread, it would be quite tedious and messy.
                         try
                         {
+                            // A directory selection enumerates every .partNN.rar file.
+                            // Process each multipart set only once.
+                            if (!processedRarSets.Add(FirstRarVolume(fileName)))
+                            {
+                                count++;
+                                continue;
+                            }
                             if (!Utils.CheckTempForSpace(TempDirectory))                //Make sure the temporary directory provided actually has enough free space for the extraction (checks for 4.8 GB... not entirely correct, since Brawl is 6.8 GBs)
                             {
                                 count++;                                                //If theres not enough space, add an error message, increment the number of items processed and move on to the next file.
