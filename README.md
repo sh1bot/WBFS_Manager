@@ -1,6 +1,14 @@
 # WBFS_Manager
 This application basically provides a GUI for working with hard disk drives that have been formatted to the WBFS file system.
 
+## Test release
+
+The current **[Windows test pre-release](https://github.com/sh1bot/WBFS_Manager/releases/tag/test-839a5f8)** contains downloadable ZIPs for x86, x64 and ARM64, plus SHA-256 checksums.
+
+These builds have passed automated builds and startup checks, and users have confirmed that all three download and launch. Disk-writing features and channel creation are not fully validated. The release is labelled **pre-release**, not stable.
+
+Future test releases can be published by committing to `master` with `[publish-test]` in the commit message. The GitHub Actions workflow builds all three architectures, verifies the package manifests, and publishes a tagged pre-release with downloadable ZIP assets.
+
 ## Development downloads
 
 The current [GitHub Actions builds](https://github.com/sh1bot/WBFS_Manager/actions/workflows/windows-build.yml) provide separate x86, x64, and experimental ARM64 diagnostic ZIPs. These are **not official releases** and should be extracted before use.
