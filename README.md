@@ -11,6 +11,9 @@ Future test releases can be published by committing to `master` with `[publish-t
 
 ## Development downloads
 
+Multipart RAR imports now open the full volume set (including `.partNN.rar` files) from the first part and avoid processing a set repeatedly when a folder is selected. This is included in the next test pre-release, pending manual extraction verification.
+
+
 The current [GitHub Actions builds](https://github.com/sh1bot/WBFS_Manager/actions/workflows/windows-build.yml) provide separate x86, x64, and experimental ARM64 diagnostic ZIPs. These are **not official releases** and should be extracted before use.
 
 - **x86:** Windows .NET Framework 4.8, paired with a source-built x86 WBFS native wrapper. An earlier x86 package was manually launch-tested.
