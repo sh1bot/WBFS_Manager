@@ -8,7 +8,8 @@ using System.Net;
 using System.Text;
 using System.Xml.Linq;
 using libwbfsNET;
-using SharpCompress.Archives.Rar;
+using SharpCompress.Archives;
+using System.Text.RegularExpressions;
 using WBFSManager.Data;
 using IOPath = System.IO.Path;
 
@@ -268,6 +269,7 @@ namespace WBFSManager
             List<WbfsEntry> entriesAdded = new List<WbfsEntry>();       //Create a list of the entries that have been added to the drive (since adding to the EntriesToAdd list is not possible (belongs to a separate thread)).
             List<ErrorDetails> errorList = new List<ErrorDetails>();    //Create a list of any errors that occur.
             ArrayList resultList = new ArrayList();                     //An array list to store both entriesAdded and errorList when returning from the function.
+            HashSet<string> processedRarSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int count =0;                                               //The number of items processed so far.
             foreach (String fileName in filenames)                      //iterate over each of the filename strings
             {
@@ -950,13 +952,43 @@ namespace WBFSManager
         /// <param name="unrar_MissingVolume">The event handler (callback) which is used to report a missing volume. This callback can be used to resolve this issue by prompting the user.</param>
         /// <param name="unrar_PasswordRequired">The event handler (callback) which is used to report a password protected archive. This callback can be used to resolve this issue by prompting the user.</param>
         /// <returns>Returns a list of filename strings of ISO files that were extracted. Returns null if no ISO files were extracted.</returns>
+        // Some multipart RAR sets are named "movie.part01.rar" / "movie.part02.rar".
+        // SharpCompress must be given the *first* volume, not whichever part a user
+        // happened to select (including when the whole directory was selected).
+        private static string FirstRarVolume(string filename)
+        {
+            string fullPath = Path.GetFullPath(filename);
+            string name = Path.GetFileName(fullPath);
+            Match part = Regex.Match(name, @"^(.*\.part)(\d+)(\.rar)$", RegexOptions.IgnoreCase);
+            if (!part.Success)
+                return fullPath;
+            string firstName = part.Groups[1].Value
+                + "1".PadLeft(part.Groups[2].Length, '0')
+                + part.Groups[3].Value;
+            string firstPath = Path.Combine(Path.GetDirectoryName(fullPath), firstName);
+            if (!File.Exists(firstPath))
+                throw new FileNotFoundException("First RAR volume is missing: " + firstName, firstPath);
+            return firstPath;
+        }
+
+        private static IEnumerable<FileInfo> GetRarVolumeFiles(string filename)
+        {
+            string first = FirstRarVolume(filename);
+            // Enumerate all required local volume paths, in archive order.
+            // Opening a single file with RarArchive.OpenArchive() can leave
+            // subsequent volumes unavailable during entry decompression.
+            foreach (string part in ArchiveFactory.GetFileParts(first))
+                yield return new FileInfo(part);
+        }
+
         private List<String> ExtractRar(String filename, ExtractionProgressHandler unrar_ExtractionProgress, MissingVolumeHandler unrar_MissingVolume, PasswordRequiredHandler unrar_PasswordRequired)
         {
             // The historical UnRAR.DLL is no longer required for ISO imports.
             // Extract only ISO images using maintained managed code, and never
             // trust paths supplied by a RAR archive.
             List<String> extractedIsoFilenames = new List<String>();
-            using (var archive = RarArchive.OpenArchive(filename))
+            using (var archive = ArchiveFactory.OpenArchive(
+                new List<FileInfo>(GetRarVolumeFiles(filename))))
             {
                 bool hasIsos = false;
                 foreach (var entry in archive.Entries)
